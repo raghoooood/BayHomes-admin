@@ -395,6 +395,14 @@ const updateProject = async (req, res) => {
    return res.status(400).json({ success: false, message: 'Developer not found. Please create the developer first.' });
  }
 
+   // Check if Area exists
+   const area = await Area.findOne({ areaName }).session(session);
+   if (!area) {
+     await session.abortTransaction();
+     session.endSession();
+     return res.status(400).json({ success: false, message: 'Area not found. Please create the area first.' });
+   }
+
     // Handle inImages update
     let inImagesUrls = existingProject.images.inImages;
     if (inImages && Array.isArray(inImages) && inImages.length > 0) {
@@ -447,7 +455,7 @@ const updateProject = async (req, res) => {
     );
 
     // Update the project with the new data
-    await Project.findByIdAndUpdate(
+    const updatedProject = await Project.findByIdAndUpdate(
       { _id: id },
       {
         projectName,
@@ -464,7 +472,7 @@ const updateProject = async (req, res) => {
           backgroundImage: backImageUrl,
         },
         floorPlans: floorPlansWithImages,
-        area: areaName,
+        area: area._id,
         developer: developer._id,
         location,
         aboutMap,
@@ -472,6 +480,20 @@ const updateProject = async (req, res) => {
       },
       { new: true }
     );
+    if (!updatedProject || !updatedProject._id) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(500).json({ message: "Failed to update project" });
+    }
+
+    // Add projectId to Developer's project list
+    developer.projectId.push(updatedProject._id);
+    await developer.save({ session });
+
+    // Add projectId to Area's project list
+    area.projectId.push(updatedProject._id);
+    await area.save({ session });
+
 
     // Optionally, delete old images from Cloudinary
     if (inImagesUrls.length > 0) {
@@ -489,6 +511,9 @@ const updateProject = async (req, res) => {
         return cloudinary.uploader.destroy(publicId);
       }));
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ message: "Project updated successfully" });
   } catch (error) {
@@ -509,7 +534,7 @@ const getPublicIdFromUrl = (url) => {
     const { id } = req.params;
 
     // Find the property to delete and populate the creator
-    const projectToDelete = await Project.findById(id);
+    const projectToDelete = await Project.findById(id).populate("creator area developer");
     if (!projectToDelete) {
       return res.status(404).json({ message: "Property not found" });
     }
@@ -550,18 +575,22 @@ const getPublicIdFromUrl = (url) => {
           .filter((img) => img);
         await deleteImagesFromCloudinary(floorImages);
       }
-      await projectToDelete.remove({ session });
+     
       projectToDelete.creator.allProjects.pull(projectToDelete);
       await projectToDelete.creator.save({ session });
 
-      projectToDelete.area.projectId.pull(projectToDelete);
-      await projectToDelete.area.save({ session });
-
+      if(projectToDelete.area) {
+        projectToDelete.area.projectId.pull(projectToDelete._id);
+        await projectToDelete.area.save({ session });
+      }
+     if(projectToDelete.developer) {
       projectToDelete.developer.projectId.pull(projectToDelete);
       await projectToDelete.developer.save({ session });
+     }
+      
 
 
-
+      await projectToDelete.remove({ session });
       // Commit the transaction
       await session.commitTransaction();
       session.endSession();

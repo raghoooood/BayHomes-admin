@@ -193,39 +193,43 @@ const updateArea = async (req, res) => {
       areaName,
       description,
       features,
-      image,
+      image,   // New image input (can be undefined)
       location,
     } = req.body;
 
-    // Find the area by ID
-    const areaToUpdate = await Area.findById(id);
-    if (!areaToUpdate) {
+    // Fetch the existing area
+    const existingArea = await Area.findById(id);
+
+    if (!existingArea) {
       return res.status(404).json({ message: "Area not found" });
     }
 
-    let imageUrl = areaToUpdate.image;
-
-    // If a new image is provided, delete the old one and upload the new one
-    if (image) {
-      if (imageUrl) {
-        const publicId = imageUrl.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(publicId);
-      }
+    // Handle area image update
+    let updatedImageUrl = existingArea.image;  // Keep the existing image by default
+    if (image && !image.startsWith("http")) {
+      // Only upload new images (if provided and not already a URL)
       const uploadedImage = await cloudinary.uploader.upload(image);
-      imageUrl = uploadedImage.url;
+      updatedImageUrl = uploadedImage.url;
     }
 
-    // Update the area document in the database
+    // Update the area with new data, and set the image if provided
     await Area.findByIdAndUpdate(
-      { _id: id },
+      id,
       {
         areaName,
         description,
         features,
-        image: imageUrl,
+        image: updatedImageUrl,
         location,
-      }
+      },
+      { new: true }
     );
+
+    // Optionally delete old images from Cloudinary if a new image was uploaded
+    if (updatedImageUrl !== existingArea.image && existingArea.image) {
+      const oldImagePublicId = getPublicIdFromUrl(existingArea.image);
+      await cloudinary.uploader.destroy(oldImagePublicId);
+    }
 
     res.status(200).json({ message: "Area updated successfully" });
   } catch (error) {
@@ -233,12 +237,21 @@ const updateArea = async (req, res) => {
   }
 };
 
+// Helper function to extract the public ID from a Cloudinary URL
+const getPublicIdFromUrl = (url) => {
+  const parts = url.split('/');
+  const publicIdWithExtension = parts[parts.length - 1];
+  return publicIdWithExtension.split('.')[0];
+};
+
+
+
 const deleteArea = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Find the area to delete
-    const areaToDelete = await Area.findById(id).populate("creator").populate("propertyId");
+    // Find the area to delete and populate the creator
+    const areaToDelete = await Area.findById(id).populate("creator projectId propertyId");
     if (!areaToDelete) {
       return res.status(404).json({ message: "Area not found" });
     }
@@ -248,16 +261,38 @@ const deleteArea = async (req, res) => {
     session.startTransaction();
 
     try {
-      // Delete the image from Cloudinary
+      // Handle the deletion of the single image from Cloudinary (if it exists)
       if (areaToDelete.image) {
         const publicId = areaToDelete.image.split('/').pop().split('.')[0];
         await cloudinary.uploader.destroy(publicId);
       }
 
-      // Remove the area and update the creator's allAreas
-      await areaToDelete.remove({ session });
+      // Remove the developer reference from associated projects
+      if (areaToDelete.projectId && areaToDelete.projectId.length > 0) {
+        for (let project of areaToDelete.projectId) {
+          // Remove the developer reference from the project
+          project.area = null; // Assuming developer field is stored as a single reference, adjust if it's an array
+          await project.save({ session });
+        }
+      }
+
+      // Remove the developer reference from associated projects
+      if (areaToDelete.propertyId && areaToDelete.propertyId.length > 0) {
+        for (let property of areaToDelete.propertyId) {
+          // Remove the developer reference from the project
+          property.area = null; // Assuming developer field is stored as a single reference, adjust if it's an array
+          await property.save({ session });
+        }
+      }
+
+    
+      // Update the creator's allAreas
       areaToDelete.creator.allAreas.pull(areaToDelete);
       await areaToDelete.creator.save({ session });
+
+      // Remove the area
+      await areaToDelete.remove({ session });
+
 
       // Commit the transaction
       await session.commitTransaction();

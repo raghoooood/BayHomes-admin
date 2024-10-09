@@ -276,6 +276,9 @@ const updateProperty = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
+    const areana = await Area.findOne({ areaName }).session(session);
+
+
     // Handle propImages update
     let imageUrls = [];
     if (propImages && Array.isArray(propImages) && propImages.length > 0) {
@@ -302,7 +305,7 @@ const updateProperty = async (req, res) => {
     }
 
     // Update the property with the new data and delete old image URLs
-    await Property.findByIdAndUpdate(
+    const updatedProperty = await Property.findByIdAndUpdate(
       { _id: id },
       {
         title,
@@ -325,9 +328,12 @@ const updateProperty = async (req, res) => {
         featured,
         projectName,
         barcode: imageUrl || existingProperty.barcode,
+        areaName: areana._id,
       },
       { new: true }
     );
+    areana.propertyId.push(updatedProperty._id);
+    await areana.save({ session });
 
     // Optionally, delete old images from Cloudinary
     if (imageUrls.length > 0) {
@@ -337,6 +343,9 @@ const updateProperty = async (req, res) => {
         return cloudinary.uploader.destroy(publicId);
       }));
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({ message: "Property updated successfully" });
   } catch (error) {
@@ -352,12 +361,12 @@ const getPublicIdFromUrl = (url) => {
 };
 
 
-/* const deleteProperty = async (req, res) => {
+ const deleteProperty = async (req, res) => {
   try {
     const { id } = req.params;
 
     // Find the property to delete and populate the creator
-    const propertyToDelete = await Property.findById(id).populate("creator");
+    const propertyToDelete = await Property.findById(id).populate("creator area");
     if (!propertyToDelete) {
       return res.status(404).json({ message: "Property not found" });
     }
@@ -366,11 +375,26 @@ const getPublicIdFromUrl = (url) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
+     // Extract public IDs of all images from Cloudinary URLs
+     const propImagePublicIds = propertyToDelete.images.propImages.map(getPublicIdFromUrl);
+     const backgroundImagePublicId = getPublicIdFromUrl(propertyToDelete.images.backgroundImage);
+     const barcodePublicId = getPublicIdFromUrl(propertyToDelete.barcode);
+
     try {
       // Remove the property and update the creator's allProperties
       await propertyToDelete.remove({ session });
       propertyToDelete.creator.allProperties.pull(propertyToDelete);
       await propertyToDelete.creator.save({ session });
+
+      propertyToDelete.area.propertyId.pull(propertyToDelete);
+      await propertyToDelete.area.save({ session });
+
+       // Delete images from Cloudinary
+       await Promise.all([
+        ...propImagePublicIds.map((publicId) => cloudinary.uploader.destroy(publicId)),
+        cloudinary.uploader.destroy(backgroundImagePublicId),
+        cloudinary.uploader.destroy(barcodePublicId),
+      ]);
 
       // Commit the transaction
       await session.commitTransaction();
@@ -388,9 +412,9 @@ const getPublicIdFromUrl = (url) => {
     // Catch any other errors and respond with the error message
     res.status(500).json({ message: error.message });
   }
-}; */
+}; 
 
-const deleteProperty = async (req, res) => {
+/* const deleteProperty = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -441,10 +465,7 @@ const deleteProperty = async (req, res) => {
     // Catch any other errors and respond with the error message
     res.status(500).json({ message: error.message });
   }
-};
-
-
-
+}; */
 
 
 export {
