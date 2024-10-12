@@ -1,4 +1,4 @@
-import Property from "../mongodb/models/property.js"; // This import seems unused
+import Property from "../mongodb/models/property.js";
 import User from "../mongodb/models/user.js";
 import Developer from "../mongodb/models/developer.js";
 
@@ -30,11 +30,11 @@ const getAllDevelopers = async (req, res) => {
   }
 
   try {
-    const count = await Developer.countDocuments(query);
+    const count = await Developer.countDocuments({ query });
 
     const developers = await Developer.find(query)
-      .limit(parseInt(_end)) // Ensure _end is converted to an integer
-      .skip(parseInt(_start)) // Ensure _start is converted to an integer
+      .limit(_end)
+      .skip(_start)
       .sort({ [_sort]: _order });
 
     res.header("x-total-count", count);
@@ -48,153 +48,116 @@ const getAllDevelopers = async (req, res) => {
 
 const getDeveloperDetail = async (req, res) => {
   const { id } = req.params;
-
-  try {
-    const developerExists = await Developer.findById(id)
-      .populate("projectId")
-      .populate("creator");
-
-    if (developerExists) {
-      res.status(200).json(developerExists);
-    } else {
-      res.status(404).json({ message: "Developer not found" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  const developerExists = await Developer.findOne({ _id: id }).populate(
+    "projectId",
+  ).populate("creator");
+  if (developerExists) {
+    res.status(200).json(developerExists);
+  } else {
+    res.status(404).json({ message: "Developer not found" });
   }
 };
 
 const createDeveloper = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+    try {
+      const {
+        developerName,
+        description,
+        image,
+        email,
+      } = req.body;
+  
+      const session = await mongoose.startSession();
+      session.startTransaction();
 
-  try {
-    const {
-      developerName,
-      description,
-      image,
-      email,
-    } = req.body;
+      const user = await User.findOne({ email }).session(session);
 
-    const user = await User.findOne({ email }).session(session);
+  
+      if (!user) throw new Error("User not found");
 
-    if (!user) throw new Error("User not found");
+  
+      // Upload a single photo to Cloudinary
+      const uploadedImage = await cloudinary.uploader.upload(image);
+  
+      // Extract the URL from the uploaded photo
+      const imageUrl = uploadedImage.url;
+  
+      // Create a new area without associating it with any properties initially
+      const newDeveloper = await Developer.create({
+        developerId: new mongoose.Types.ObjectId(),
+        developerName,
+        description,
+        projectId: [],
+        image : imageUrl,
+        creator: user._id,
+      });
+  
+    
+      user.allDevelopers.push(newDeveloper._id);
+      await user.save({ session });
+  
+      await session.commitTransaction();
+  
+      res.status(200).json({ message: "Developer created successfully", developer: newDeveloper });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+  
 
-    // Upload image to Cloudinary
-    const uploadedImage = await cloudinary.uploader.upload(image);
-    const imageUrl = uploadedImage.url;
 
-    const newDeveloper = await Developer.create([{
-      developerId: new mongoose.Types.ObjectId(),
-      developerName,
-      description,
-      projectId: [],
-      image: imageUrl,
-      creator: user._id,
-    }], { session });
-
-    user.allDevelopers.push(newDeveloper[0]._id);
-    await user.save({ session });
-
-    await session.commitTransaction();
-    res.status(200).json({ message: "Developer created successfully", developer: newDeveloper[0] });
-  } catch (error) {
-    await session.abortTransaction();
-    res.status(500).json({ message: error.message });
-  } finally {
-    session.endSession();
-  }
-};
 
 const updateDeveloper = async (req, res) => {
-  const { id } = req.params;
-  const {
-    projectName,
-    description,
-    area,
-    image,
-    developerName,
-  } = req.body;
-
   try {
-    const existingDeveloper = await Developer.findById(id);
+    const { id } = req.params;
+    const { 
+      projectName,
+      description,
+      area,
+      image,
+      developerName,
+      // Add any other fields as needed
+    } = req.body;
 
-    if (!existingDeveloper) {
-      return res.status(404).json({ message: "Developer not found" });
-    }
+    
+      const existingDeveloper = await Developer.findById(id);
 
-    // Handle image update
-    let updatedImageUrl = existingDeveloper.image;
-    if (image && !image.startsWith("http")) {
-      const uploadedImage = await cloudinary.uploader.upload(image);
-      updatedImageUrl = uploadedImage.url;
-    }
+      if (!existingDeveloper) {
+        return res.status(404).json({ message: "Develoepr not found" });
+      }
+  
+      // Handle area image update
+      let updatedImageUrl = existingDeveloper.image;  // Keep the existing image by default
+      if (image && !image.startsWith("http")) {
+        // Only upload new images (if provided and not already a URL)
+        const uploadedImage = await cloudinary.uploader.upload(image);
+        updatedImageUrl = uploadedImage.url;
+      }
 
-    const updatedDeveloper = await Developer.findByIdAndUpdate(
-      id,
-      {
-        projectName,
-        description,
-        area,
-        image: updatedImageUrl,
-        developerName,
-      },
-      { new: true }
-    );
+      // Update the project document in the database
+      await Developer.findByIdAndUpdate(
+        id,
+        {
+          projectName,
+          description,
+          area,
+          image: updatedImageUrl,
+          developerName,
+        },
+        { new: true }
+      );
 
-    // Optionally delete old Cloudinary images
+     
+    // Optionally delete old images from Cloudinary if a new image was uploaded
     if (updatedImageUrl !== existingDeveloper.image && existingDeveloper.image) {
       const oldImagePublicId = getPublicIdFromUrl(existingDeveloper.image);
       await cloudinary.uploader.destroy(oldImagePublicId);
     }
-
-    res.status(200).json({ message: "Developer updated successfully", developer: updatedDeveloper });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const deleteDeveloper = async (req, res) => {
-  const { id } = req.params;
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const developerToDelete = await Developer.findById(id)
-      .populate("creator projectId");
-
-    if (!developerToDelete) {
-      await session.abortTransaction();
-      return res.status(404).json({ message: "Developer not found" });
+      res.status(200).json({ message: "Developer updated successfully"});
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
-
-    if (developerToDelete.image) {
-      const publicId = getPublicIdFromUrl(developerToDelete.image);
-      await cloudinary.uploader.destroy(publicId);
-    }
-
-    if (developerToDelete.projectId && developerToDelete.projectId.length > 0) {
-      for (let project of developerToDelete.projectId) {
-        project.developer = null;
-        await project.save({ session });
-      }
-    }
-
-    if (developerToDelete.creator) {
-      developerToDelete.creator.allDevelopers.pull(developerToDelete._id);
-      await developerToDelete.creator.save({ session });
-    }
-
-    await developerToDelete.remove({ session });
-    await session.commitTransaction();
-
-    res.status(200).json({ message: "Developer deleted successfully" });
-  } catch (error) {
-    await session.abortTransaction();
-    res.status(500).json({ message: error.message });
-  } finally {
-    session.endSession();
-  }
+  
 };
 
 // Helper function to extract the public ID from a Cloudinary URL
@@ -203,6 +166,74 @@ const getPublicIdFromUrl = (url) => {
   const publicIdWithExtension = parts[parts.length - 1];
   return publicIdWithExtension.split('.')[0];
 };
+
+
+
+
+const deleteDeveloper = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Start a session and transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Find the developer to delete, including associated projects and creator
+      const developerToDelete = await Developer.findById(id).populate("creator projectId");
+
+      // If developer is not found
+      if (!developerToDelete) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ message: "Developer not found" });
+      }
+
+      // Delete the image from Cloudinary if it exists
+      if (developerToDelete.image) {
+        const publicId = developerToDelete.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+
+      // Remove the developer reference from associated projects
+      if (developerToDelete.projectId && developerToDelete.projectId.length > 0) {
+        for (let project of developerToDelete.projectId) {
+          // Remove the developer reference from the project
+          project.developer = null; // Assuming developer field is stored as a single reference, adjust if it's an array
+          await project.save({ session });
+        }
+      }
+
+      // Safely remove references from related creator
+      if (developerToDelete.creator) {
+        developerToDelete.creator.allDevelopers.pull(developerToDelete._id);
+        await developerToDelete.creator.save({ session });
+      }
+
+      // Remove the developer
+      await developerToDelete.remove({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ message: "Developer deleted successfully" });
+    } catch (error) {
+      // Abort the transaction on error
+      await session.abortTransaction();
+      session.endSession();
+      console.error("Transaction error:", error); // Log the error
+      throw error;
+    }
+  } catch (error) {
+    // Catch any other errors and respond with the error message
+    console.error("Server error:", error); // Log the error
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
 
 export {
   getAllDevelopers,
