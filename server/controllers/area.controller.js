@@ -8,12 +8,14 @@ import { v2 as cloudinary } from "cloudinary";
 
 dotenv.config();
 
+// Cloudinary configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Get all areas with pagination and sorting
 const getAllAreas = async (req, res) => {
   const {
     _end,
@@ -30,11 +32,11 @@ const getAllAreas = async (req, res) => {
   }
 
   try {
-    const count = await Area.countDocuments({ query });
+    const count = await Area.countDocuments(query); // Fixed the count query
 
     const areas = await Area.find(query)
-      .limit(_end)
-      .skip(_start)
+      .limit(Number(_end))  // Ensure these are numbers
+      .skip(Number(_start))
       .sort({ [_sort]: _order });
 
     res.header("x-total-count", count);
@@ -46,146 +48,66 @@ const getAllAreas = async (req, res) => {
   }
 };
 
+// Get area details by ID
 const getAreaDetail = async (req, res) => {
   const { id } = req.params;
-  const areaExists = await Area.findOne({ _id: id }).populate(
-    "creator",
-  );
+  const areaExists = await Area.findOne({ _id: id }).populate("creator");
+
   if (areaExists) {
     res.status(200).json(areaExists);
   } else {
-    res.status(404).json({ message: "Property not found" });
+    res.status(404).json({ message: "Area not found" });
   }
 };
 
+// Create a new area
 const createArea = async (req, res) => {
-    try {
-      const {
-        areaName,
-        description,
-        features,
-        image,
-        location,
-        email,
-      } = req.body;
-  
-      const session = await mongoose.startSession();
-      session.startTransaction();
-
-      const user = await User.findOne({ email }).session(session);
-
-      if (!user) throw new Error("User not found");
-  
-      // Upload a single photo to Cloudinary
-      const uploadedImage = await cloudinary.uploader.upload(image);
-  
-      // Extract the URL from the uploaded photo
-      const imageUrl = uploadedImage.url;
-  
-      // Create a new area without associating it with any properties initially
-      const newArea = await Area.create({
-        areaId: new mongoose.Types.ObjectId(),
-        areaName,
-        description,
-        features,
-        image: imageUrl,
-        location,
-        creator: user._id,
-        propertyId: [] // Empty array initially, properties can be pushed later
-      });
-  
-      user.allAreas.push(newArea._id);
-      await user.save({ session });
-
-      await session.commitTransaction();
-  
-      res.status(200).json({ message: "Area created successfully", area: newArea });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  };
-  
-
- 
-
-/* const updateArea = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { 
+    const {
       areaName,
       description,
       features,
       image,
       location,
+      email,
     } = req.body;
-      
-  
-      const uploadedImage = await cloudinary.uploader.upload(image);
-  
-      // Extract the URL from the uploaded photo
-      const imageUrl = uploadedImage.url;
 
-    await Area.findByIdAndUpdate(
-      { _id: id },
-      {
-        areaName,
-        description,
-        features,
-        image: imageUrl,
-        location,
-      },
-    );
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    res.status(200).json({ message: "Area updated successfully" });
+    const user = await User.findOne({ email }).session(session);
+
+    if (!user) throw new Error("User not found");
+
+    // Upload the image to Cloudinary
+    const uploadedImage = await cloudinary.uploader.upload(image);
+    const imageUrl = uploadedImage.url;
+
+    // Create a new area
+    const newArea = await Area.create([{
+      areaId: new mongoose.Types.ObjectId(),
+      areaName,
+      description,
+      features,
+      image: imageUrl,
+      location,
+      creator: user._id,
+      propertyId: [] // Empty array initially
+    }], { session });
+
+    user.allAreas.push(newArea[0]._id);
+    await user.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({ message: "Area created successfully", area: newArea });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-const deleteArea = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Find the area to delete and populate the creator
-    const areaToDelete = await Area.findById(id).populate("creator").populate("propertyId");
-    if (!areaToDelete) {
-      return res.status(404).json({ message: "Area not found" });
-    }
-
-    // Start a session and transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // Remove the area and update the creator's allProperties
-      await areaToDelete.remove({ session });
-      areaToDelete.creator.allAreas.pull(areaToDelete);
-      await areaToDelete.creator.save({ session });
-
-      await areaToDelete.remove({ session });
-      areaToDelete.creator.allAreas.pull(areaToDelete);
-      await areaToDelete.creator.save({ session });
-
-
-      // Commit the transaction
-      await session.commitTransaction();
-      session.endSession();
-
-      // Respond with success
-      res.status(200).json({ message: "Area deleted successfully" });
-    } catch (transactionError) {
-      // Abort the transaction on error
-      await session.abortTransaction();
-      session.endSession();
-      throw transactionError;
-    }
-  } catch (error) {
-    // Catch any other errors and respond with the error message
-    res.status(500).json({ message: error.message });
-  }
-}; 
- */
-
+// Update an existing area
 const updateArea = async (req, res) => {
   try {
     const { id } = req.params;
@@ -193,7 +115,7 @@ const updateArea = async (req, res) => {
       areaName,
       description,
       features,
-      image,   // New image input (can be undefined)
+      image, // New image input (can be undefined)
       location,
     } = req.body;
 
@@ -207,12 +129,11 @@ const updateArea = async (req, res) => {
     // Handle area image update
     let updatedImageUrl = existingArea.image;  // Keep the existing image by default
     if (image && !image.startsWith("http")) {
-      // Only upload new images (if provided and not already a URL)
       const uploadedImage = await cloudinary.uploader.upload(image);
       updatedImageUrl = uploadedImage.url;
     }
 
-    // Update the area with new data, and set the image if provided
+    // Update the area with new data
     await Area.findByIdAndUpdate(
       id,
       {
@@ -237,81 +158,61 @@ const updateArea = async (req, res) => {
   }
 };
 
+// Delete an existing area
+const deleteArea = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the area to delete
+    const areaToDelete = await Area.findById(id).populate("creator projectId propertyId");
+    if (!areaToDelete) {
+      return res.status(404).json({ message: "Area not found" });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Delete the image from Cloudinary
+      if (areaToDelete.image) {
+        const publicId = getPublicIdFromUrl(areaToDelete.image);
+        await cloudinary.uploader.destroy(publicId);
+      }
+
+      // Remove references from associated properties
+      for (const property of areaToDelete.propertyId) {
+        property.area = null; // Remove area reference
+        await property.save({ session });
+      }
+
+      // Update the creator's allAreas
+      areaToDelete.creator.allAreas.pull(areaToDelete);
+      await areaToDelete.creator.save({ session });
+
+      // Remove the area
+      await Area.findByIdAndRemove(id, { session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ message: "Area deleted successfully" });
+    } catch (transactionError) {
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Helper function to extract the public ID from a Cloudinary URL
 const getPublicIdFromUrl = (url) => {
   const parts = url.split('/');
   const publicIdWithExtension = parts[parts.length - 1];
   return publicIdWithExtension.split('.')[0];
 };
-
-
-
-const deleteArea = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Find the area to delete and populate the creator
-    const areaToDelete = await Area.findById(id).populate("creator projectId propertyId");
-    if (!areaToDelete) {
-      return res.status(404).json({ message: "Area not found" });
-    }
-
-    // Start a session and transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // Handle the deletion of the single image from Cloudinary (if it exists)
-      if (areaToDelete.image) {
-        const publicId = areaToDelete.image.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(publicId);
-      }
-
-      // Remove the developer reference from associated projects
-      if (areaToDelete.projectId && areaToDelete.projectId.length > 0) {
-        for (let project of areaToDelete.projectId) {
-          // Remove the developer reference from the project
-          project.area = null; // Assuming developer field is stored as a single reference, adjust if it's an array
-          await project.save({ session });
-        }
-      }
-
-      // Remove the developer reference from associated projects
-      if (areaToDelete.propertyId && areaToDelete.propertyId.length > 0) {
-        for (let property of areaToDelete.propertyId) {
-          // Remove the developer reference from the project
-          property.area = null; // Assuming developer field is stored as a single reference, adjust if it's an array
-          await property.save({ session });
-        }
-      }
-
-    
-      // Update the creator's allAreas
-      areaToDelete.creator.allAreas.pull(areaToDelete);
-      await areaToDelete.creator.save({ session });
-
-      // Remove the area
-      await areaToDelete.remove({ session });
-
-
-      // Commit the transaction
-      await session.commitTransaction();
-      session.endSession();
-
-      // Respond with success
-      res.status(200).json({ message: "Area deleted successfully" });
-    } catch (transactionError) {
-      // Abort the transaction on error
-      await session.abortTransaction();
-      session.endSession();
-      throw transactionError;
-    }
-  } catch (error) {
-    // Catch any other errors and respond with the error message
-    res.status(500).json({ message: error.message });
-  }
-};
-
 
 export {
   getAllAreas,
