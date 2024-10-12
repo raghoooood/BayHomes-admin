@@ -163,87 +163,10 @@ const createProperty = async (req, res) => {
   }
 };
 
-/* const updateProperty = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { 
-      title,
-      description,
-      propertyType,
-      location,
-      price,
-      propImages,
-      backgroundImage,
-      email,
-      numOfbathrooms,
-      numOfrooms,
-      size,
-      features,
-      permitNo,
-      areaName,
-      purpose,
-      furnishingType,
-      classification,
-      featured,
-      projectName,
-      barcode,
-    } = req.body;
-      if (!propImages || !Array.isArray(propImages)) {
-        throw new Error("Images must be an array");
-      }
-  
-      // Upload all photos to Cloudinary
-      const uploadedImages = await Promise.all(
-        propImages.map(image => cloudinary.uploader.upload(image))
-      );
-  
-      // Extract URLs from the uploaded photos
-      const imageUrls = uploadedImages.map(image => image.url);
 
-       // Upload a single photo to Cloudinary
-       const uploadedImage = await cloudinary.uploader.upload(barcode);
-  
-       // Extract the URL from the uploaded photo
-       const imageUrl = uploadedImage.url;
-
-        // Upload bacground images to Cloudinary
-        const uploadedBackImage = await cloudinary.uploader.upload(backgroundImage);
-        
-        const backImageUrl = uploadedBackImage.url;
-
-    await Property.findByIdAndUpdate(
-      { _id: id },
-      {
-        title,
-        description,
-        propertyType,
-        location,
-        price,
-        images:{
-          propImages: imageUrls,
-          backgroundImage: backImageUrl,
-        }, // Store the array of URLs directly
-        numOfbathrooms,
-        numOfrooms,
-        size,
-        features,
-        permitNo,
-        purpose,
-        furnishingType,
-        classification,
-        featured,
-        projectName,
-        barcode: imageUrl,
-     },
-    );
-
-    res.status(200).json({ message: "Property updated successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-}; */
 
 const updateProperty = async (req, res) => {
+  
   try {
     const { id } = req.params;
     const {
@@ -268,6 +191,9 @@ const updateProperty = async (req, res) => {
       projectName,
       barcode,
     } = req.body;
+
+    const session = await Property.startSession(); // Start a session
+    session.startTransaction(); // Begin the transaction
 
     // Fetch the existing property
     const existingProperty = await Property.findById(id);

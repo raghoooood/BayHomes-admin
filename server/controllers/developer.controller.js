@@ -232,9 +232,6 @@ const deleteDeveloper = async (req, res) => {
   }
 };
 
-
-
-
 export {
   getAllDevelopers,
   getDeveloperDetail,
