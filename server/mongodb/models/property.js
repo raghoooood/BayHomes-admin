@@ -30,6 +30,12 @@ const PropertySchema = new mongoose.Schema({
     street: { type: String, required: false },
     URL: { type: String, required: true },
   },
+  status: {
+    type: String,
+    enum: ['active', 'archived'],
+    default: 'active',
+    required: true
+  },
 
 
 });

@@ -166,7 +166,6 @@ const createProperty = async (req, res) => {
 
 
 const updateProperty = async (req, res) => {
-  
   try {
     const { id } = req.params;
     const {
@@ -190,10 +189,8 @@ const updateProperty = async (req, res) => {
       featured,
       projectName,
       barcode,
+      status,
     } = req.body;
-
-    const session = await Property.startSession(); // Start a session
-    session.startTransaction(); // Begin the transaction
 
     // Fetch the existing property
     const existingProperty = await Property.findById(id);
@@ -202,6 +199,19 @@ const updateProperty = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
+    // If status is provided, handle archiving logic
+    if (status !== undefined) {
+      const updatedProperty = await Property.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      );
+      return res.status(200).json({
+        success: true,
+        message: `Property status updated to ${status}`,
+        data: updatedProperty,
+      });
+    }
     const areana = await Area.findOne({ areaName }).session(session);
 
 
@@ -231,7 +241,7 @@ const updateProperty = async (req, res) => {
     }
 
     // Update the property with the new data and delete old image URLs
-    const updatedProperty = await Property.findByIdAndUpdate(
+    await Property.findByIdAndUpdate(
       { _id: id },
       {
         title,
@@ -258,8 +268,6 @@ const updateProperty = async (req, res) => {
       },
       { new: true }
     );
-    areana.propertyId.push(updatedProperty._id);
-    await areana.save({ session });
 
     // Optionally, delete old images from Cloudinary
     if (imageUrls.length > 0) {
@@ -269,9 +277,6 @@ const updateProperty = async (req, res) => {
         return cloudinary.uploader.destroy(publicId);
       }));
     }
-
-    await session.commitTransaction();
-    session.endSession();
 
     res.status(200).json({ message: "Property updated successfully" });
   } catch (error) {
@@ -287,60 +292,8 @@ const getPublicIdFromUrl = (url) => {
 };
 
 
- const deleteProperty = async (req, res) => {
-  try {
-    const { id } = req.params;
 
-    // Find the property to delete and populate the creator
-    const propertyToDelete = await Property.findById(id).populate("creator area");
-    if (!propertyToDelete) {
-      return res.status(404).json({ message: "Property not found" });
-    }
-
-    // Start a session and transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-     // Extract public IDs of all images from Cloudinary URLs
-     const propImagePublicIds = propertyToDelete.images.propImages.map(getPublicIdFromUrl);
-     const backgroundImagePublicId = getPublicIdFromUrl(propertyToDelete.images.backgroundImage);
-     const barcodePublicId = getPublicIdFromUrl(propertyToDelete.barcode);
-
-    try {
-      // Remove the property and update the creator's allProperties
-      await propertyToDelete.remove({ session });
-      propertyToDelete.creator.allProperties.pull(propertyToDelete);
-      await propertyToDelete.creator.save({ session });
-
-      propertyToDelete.area.propertyId.pull(propertyToDelete);
-      await propertyToDelete.area.save({ session });
-
-       // Delete images from Cloudinary
-       await Promise.all([
-        ...propImagePublicIds.map((publicId) => cloudinary.uploader.destroy(publicId)),
-        cloudinary.uploader.destroy(backgroundImagePublicId),
-        cloudinary.uploader.destroy(barcodePublicId),
-      ]);
-
-      // Commit the transaction
-      await session.commitTransaction();
-      session.endSession();
-
-      // Respond with success
-      res.status(200).json({ message: "Property deleted successfully" });
-    } catch (transactionError) {
-      // Abort the transaction on error
-      await session.abortTransaction();
-      session.endSession();
-      throw transactionError;
-    }
-  } catch (error) {
-    // Catch any other errors and respond with the error message
-    res.status(500).json({ message: error.message });
-  }
-}; 
-
-/* const deleteProperty = async (req, res) => {
+const deleteProperty = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -391,7 +344,8 @@ const getPublicIdFromUrl = (url) => {
     // Catch any other errors and respond with the error message
     res.status(500).json({ message: error.message });
   }
-}; */
+};
+
 
 
 export {

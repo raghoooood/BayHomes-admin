@@ -4,13 +4,13 @@ import Stack from "@mui/material/Stack";
 import Modal from "@mui/material/Modal";
 import Grid from "@mui/material/Grid";
 import { useState } from "react";
-import { useDelete, useGetIdentity, useShow } from "@refinedev/core";
+import { useDelete, useGetIdentity, useShow, useUpdate } from "@refinedev/core";
 import { useParams, useNavigate } from "react-router-dom";
 import ChatBubble from "@mui/icons-material/ChatBubble";
 import Delete from "@mui/icons-material/Delete";
 import Edit from "@mui/icons-material/Edit";
-import Phone from "@mui/icons-material/Phone";
-import Place from "@mui/icons-material/Place";
+import Archive from "@mui/icons-material/Archive";
+import CheckCircle from "@mui/icons-material/CheckCircle";
 
 import { CustomButton } from "components";
 
@@ -25,8 +25,8 @@ const PropertyDetails = () => {
   const navigate = useNavigate();
   const { data: user } = useGetIdentity({ v3LegacyAuthProviderCompatible: true });
   const { query: queryResult } = useShow();
-  const { mutate } = useDelete();
-  const { id } = useParams<{ id: string }>();
+  const { mutate: updateMutate } = useUpdate();
+  const { mutate: deleteMutate } = useDelete();  const { id } = useParams<{ id: string }>();
   const { data, isLoading, isError } = queryResult;
   const propertyDetails = data?.data ?? {};
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,13 +39,41 @@ const PropertyDetails = () => {
 
   const handleDeleteProperty = () => {
     if (window.confirm("Are you sure you want to delete this property?")) {
-      mutate(
+      deleteMutate(
         { resource: "properties", id: id as string },
         {
           onSuccess: () => navigate("/properties"),
         }
       );
     }
+  };
+
+ 
+  const handleArchiveProperty = (propertyId: string, status: 'archived' | 'active') => {
+    if (!propertyId) {
+      alert('Property ID is missing');
+      return;
+    }
+    console.log(propertyDetails.status , propertyDetails._id);
+  
+    const updatedStatus = status === 'archived' ? 'active' : 'archived'; // Toggle status
+  
+    updateMutate(
+      {
+        resource: 'properties',
+        id: propertyId,
+        values: { status: updatedStatus }, // Pass the new status to the backend
+      },
+      {
+        onSuccess: () => {
+          alert(`Property status updated to ${updatedStatus}`);
+          queryResult.refetch(); // Refetch the property details to reflect the updated status
+        },
+        onError: () => {
+          alert(`Failed to update property status.${propertyDetails._id}`);
+        },
+      }
+    );
   };
 
   const handleOpenModal = () => {
@@ -284,6 +312,18 @@ const PropertyDetails = () => {
                    handleDeleteProperty();
                 }}
               />
+              <CustomButton
+              title={propertyDetails.status === 'active' ? 'Archive' : 'Unarchive'}
+              backgroundColor={propertyDetails.status === 'active' ? '#f44336' : '#4CAF50'}
+              color="#FCFCFC"
+              fullWidth
+              icon={propertyDetails.status === 'active' ? <Archive /> : <CheckCircle />}
+              handleClick={() => 
+                propertyDetails._id 
+                  ? handleArchiveProperty(propertyDetails._id, propertyDetails.status) 
+                  : alert('Property ID is missing')
+              }
+            />
             </Stack>
           </Stack>
           
