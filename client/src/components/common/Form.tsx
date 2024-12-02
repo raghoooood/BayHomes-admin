@@ -285,7 +285,10 @@ const Form = ({
               >
                 <MenuItem value="apartment">Apartment</MenuItem>
                 <MenuItem value="villa">Villa</MenuItem>
-                <MenuItem value="farmhouse">Farmhouse</MenuItem>
+                <MenuItem value="shop">Shop</MenuItem>
+                <MenuItem value="office">Office</MenuItem>
+                <MenuItem value="warehouse">Warehouse</MenuItem>
+                <MenuItem value="penthouse">Penthouse</MenuItem>
                 <MenuItem value="condos">Condos</MenuItem>
                 <MenuItem value="townhouse">Townhouse</MenuItem>
                 <MenuItem value="duplex">Duplex</MenuItem>
