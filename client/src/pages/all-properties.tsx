@@ -119,7 +119,8 @@ const AllProperties = () => {
             sx={{ flex: 1, maxWidth: "200px" }}
           >
             <MenuItem value="">All</MenuItem>
-            {["Apartment", "Villa", "Farmhouse", "Condos", "Townhouse", "Duplex", "Studio", "Chalet"].map((type) => (
+            {["Apartment", "Villa", "Shop", "Office", "Warehouse" , "Penthouse",  "Condos", "Townhouse", "Duplex", "Studio", "Chalet"].map((type) => (
+
               <MenuItem key={type} value={type.toLowerCase()}>{type}</MenuItem>
             ))}
           </Select>
