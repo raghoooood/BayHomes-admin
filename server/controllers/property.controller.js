@@ -245,8 +245,10 @@ const updateProperty = async (req, res) => {
       status,
     } = req.body;
 
-    const session = await Property.startSession(); // Start a session
-    session.startTransaction(); // Begin the transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+ 
 
     // Fetch the existing property
     const existingProperty = await Property.findById(id).populate("area").session(session);
@@ -361,10 +363,11 @@ const updateProperty = async (req, res) => {
       }));
     }
 
+    res.status(200).json({ message: "Property updated successfully", updatedProperty });
+    
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ message: "Property updated successfully", updatedProperty });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
