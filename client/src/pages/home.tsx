@@ -7,8 +7,11 @@ import {
   PieChart,
   PropertyCard,
 } from "components";
+import { useEffect } from "react";
+
 
 const Home = () => {
+
   const { data, isLoading, isError } = useList({
     resource: "properties",
     config: {
