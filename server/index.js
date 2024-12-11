@@ -22,7 +22,7 @@ const corsOptions = {
   credentials: true, // Allow cookies if needed
 };
 
-app.use(cors(corsOptions)); // Apply CORS globally
+app.use(cors()); // Apply CORS globally
 
 // Middleware to handle API key validation for the feed route
 const validateApiKey = (req, res, next) => {
@@ -38,7 +38,7 @@ const validateApiKey = (req, res, next) => {
 };
 
 // Apply API key validation to the XML feed route
-app.use("/api/feed", validateApiKey, xmlFeedRouter);
+app.use("/api/feed", xmlFeedRouter);
 
 app.use(express.json({ limit: "50mb" }));
 
