@@ -1,6 +1,8 @@
 import Property from "../mongodb/models/property.js";
 import User from "../mongodb/models/user.js";
 import Area from "../mongodb/models/Area.js";
+import {generateFeed} from "./XMLFeed.controller.js"
+
 
 import mongoose from "mongoose";
 import * as dotenv from "dotenv";
@@ -40,6 +42,8 @@ const getAllProperties = async (req, res) => {
       query.$or.push({ propId: { $regex: propId_like, $options: "i" } });
     }
   }
+
+  
 
   console.log("Constructed Query:", JSON.stringify(query, null, 2));
 
@@ -207,6 +211,8 @@ const createProperty = async (req, res) => {
     areana.propertyId.push(newProperty._id);
     await areana.save({ session });
 
+    await generateFeed(); 
+
     await session.commitTransaction();
 
     res.status(200).json({ message: "Property created successfully" });
@@ -364,6 +370,8 @@ const updateProperty = async (req, res) => {
     }
 
     res.status(200).json({ message: "Property updated successfully", updatedProperty });
+
+    await generateFeed(); 
     
     await session.commitTransaction();
     session.endSession();
@@ -415,6 +423,8 @@ const getPublicIdFromUrl = (url) => {
         cloudinary.uploader.destroy(backgroundImagePublicId),
         cloudinary.uploader.destroy(barcodePublicId),
       ]);
+
+      await generateFeed(); 
 
       // Commit the transaction
       await session.commitTransaction();

@@ -1,57 +1,72 @@
 import XmlFeed from "../mongodb/models/XMLFeed.js";  // Import the model
 import Property from "../mongodb/models/property.js";
+import xml2js from 'xml2js';
 
+
+
+// This function will generate the XML feed
 const generateFeed = async (req, res) => {
-    try {
-      // Fetch the property data from MongoDB
-      const properties = await Property.find({ status: 'active' }).populate("area");
-  
-      // Check if properties are returned
-      if (!properties || properties.length === 0) {
-        return res.status(404).json({ message: "No properties found" });
-      }
-  
-      // Map properties to the desired XML feed structure
-      const feedItems = properties.map((property) => ({
-        id: property._id,
-        title: property.title || "No Title",
-        description: property.description || "No Description",
-        price: property.price || "No Price",
-        location: {
-          street: property.location.street || "No Street",
-          city: property.location.city || "No City",
-          URL: property.location.URL || "No URL"
-        },
-        images: {
-          backgroundImage: property.images.backgroundImage || "No Background Image",
-          propImages: property.images.propImages ? property.images.propImages.join(", ") : "No Property Images"
-        },
-        numOfRooms: property.numOfrooms || "No Room Data",
-        numOfBathrooms: property.numOfbathrooms || "No Bathroom Data",
-        size: property.size || "No Size Data",
-        propertyType: property.propertyType || "No Property Type",
-        area: property.area ? property.area.areaName : "No Area",
-        status: property.status || "No Status",
-        furnishingType: property.furnishingType || "No Furnishing Type",
-        classification: property.classification || "No Classification",
-        features: property.features ? property.features.join(", ") : "No Features"
-      }));
-  
-      // Create a new XmlFeed document and save it to the database
-      const newFeed = new XmlFeed({
-        feedData: feedItems,
-      });
-  
-      await newFeed.save();
-  
-      // Return a success message
-      res.json({ message: "Feed generated and saved successfully", feed: feedItems });
-    } catch (error) {
-      console.error("Error generating feed:", error);
-      res.status(500).json({ message: "Error generating feed", error });
+  try {
+    // Fetch the property data from MongoDB
+    const properties = await Property.find({ status: 'active' }).populate("area");
+
+    if (!properties || properties.length === 0) {
+      return res.status(404).json({ message: "No properties found" });
     }
-  };
-  
+
+    // Map properties to the desired XML feed structure
+    const feedItems = properties.map((property) => ({
+      id: property._id,
+      title: property.title || "No Title",
+      description: property.description || "No Description",
+      price: property.price || "No Price",
+      location: {
+        street: property.location.street || "No Street",
+        city: property.location.city || "No City",
+        URL: property.location.URL || "No URL"
+      },
+      images: {
+        backgroundImage: property.images.backgroundImage || "No Background Image",
+        propImages: property.images.propImages ? property.images.propImages.join(", ") : "No Property Images"
+      },
+      numOfRooms: property.numOfrooms || "No Room Data",
+      numOfBathrooms: property.numOfbathrooms || "No Bathroom Data",
+      size: property.size || "No Size Data",
+      propertyType: property.propertyType || "No Property Type",
+      area: property.area ? property.area.areaName : "No Area",
+      status: property.status || "No Status",
+      furnishingType: property.furnishingType || "No Furnishing Type",
+      classification: property.classification || "No Classification",
+      features: property.features ? property.features.join(", ") : "No Features"
+    }));
+
+    // Convert feed data to XML format
+    const builder = new xml2js.Builder();
+    const xmlData = builder.buildObject({
+      feed: {
+        entry: feedItems
+      }
+    });
+
+    // Save the generated feed to the database
+    const newFeed = new XmlFeed({
+      feedData: feedItems,
+    });
+
+    await newFeed.save();
+
+    // Serve the generated XML feed to the client
+    res.header('Content-Type', 'application/xml');
+    res.send(xmlData);
+
+  } catch (error) {
+    console.error("Error generating feed:", error);
+    res.status(500).json({ message: "Error generating feed", error });
+  }
+};
+
+
+
 
 
 const escapeXML = (str) => {

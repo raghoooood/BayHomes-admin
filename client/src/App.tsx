@@ -72,7 +72,7 @@ function App() {
       const profileObj = credential ? parseJwt(credential) : null;
 
       if (profileObj) {
-        const response = await fetch("https://bayhomes-admin.onrender.com/api/v1/users", {
+        const response = await fetch(" https://bayhomes-admin.onrender.com/api/v1/users", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

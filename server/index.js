@@ -14,31 +14,10 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
-const corsOptions = {
-  origin: ['http://localhost:3000','https://www.bayhomesae.com/'], // Allow requests from your frontend
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'], // Allowed request headers
-  credentials: true, // Allow cookies if needed
-};
+
 
 app.use(cors()); // Apply CORS globally
 
-// Middleware to handle API key validation for the feed route
-const validateApiKey = (req, res, next) => {
-  const apiKey = req.headers["x-api-key"];  // Extract API key from headers
-
-  // If API key is incorrect or missing, reject the request
-  if (apiKey !== process.env.API_KEY) {
-    return res.status(403).json({ error: "Unauthorized, invalid API key" });
-  }
-
-  // If valid, move to the next middleware/route handler
-  next();
-};
-
-// Apply API key validation to the XML feed route
-app.use("/api/feed", xmlFeedRouter);
 
 app.use(express.json({ limit: "50mb" }));
 
@@ -59,7 +38,7 @@ app.use("/api/feed", xmlFeedRouter);
 
 const startServer = async () => {
   try {
-    await connectDB(process.env.MONGODB_URL, {
+    connectDB(process.env.MONGODB_URL, {
       dbName: "bay-homes",
     });
 

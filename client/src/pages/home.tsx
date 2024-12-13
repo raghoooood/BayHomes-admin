@@ -7,7 +7,6 @@ import {
   PieChart,
   PropertyCard,
 } from "components";
-import { useEffect } from "react";
 
 
 const Home = () => {
