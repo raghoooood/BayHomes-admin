@@ -36,7 +36,7 @@ app.use("/api/v1/developers", developerRouter);
 // Register the XML feed route
 app.use("/api/feed", xmlFeedRouter);
 
-const startServer = async () => {
+/* const startServer = async () => {
   try {
     connectDB(process.env.MONGODB_URL, {
       dbName: "bay-homes",
@@ -52,3 +52,16 @@ const startServer = async () => {
 };
 
 startServer();
+ */
+
+export default async (req, res) => {
+  try {
+    // Connect to the database before handling the request
+    await connectDB(process.env.MONGODB_URL, { dbName: "bay-homes" });
+    // Pass the request to the Express app
+    app(req, res);
+  } catch (error) {
+    console.error("Error connecting to DB:", error);
+    res.status(500).json({ error: "Database connection failed" });
+  }
+};

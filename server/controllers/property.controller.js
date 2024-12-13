@@ -1,7 +1,7 @@
 import Property from "../mongodb/models/property.js";
 import User from "../mongodb/models/user.js";
 import Area from "../mongodb/models/Area.js";
-import {generateFeed} from "./XMLFeed.controller.js"
+import {generateFeed} from "./xMLFeed.controller.js"
 
 
 import mongoose from "mongoose";
