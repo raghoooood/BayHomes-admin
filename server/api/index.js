@@ -2,13 +2,13 @@ import express from "express";
 import * as dotenv from "dotenv";
 import cors from "cors";
 
-import connectDB from "./mongodb/connect.js";
-import userRouter from "./routes/user.routes.js";
-import propertyRouter from "./routes/property.routes.js";
-import areaRouter from "./routes/area.routes.js";
-import projectRouter from "./routes/project.routes.js";
-import developerRouter from "./routes/developer.routes.js";
-import xmlFeedRouter from "./routes/properties-feed.routes.js"; // Import the XML feed routes
+import connectDB from "../mongodb/connect.js";
+import userRouter from "../routes/user.routes.js";
+import propertyRouter from "../routes/property.routes.js";
+import areaRouter from "../routes/area.routes.js";
+import projectRouter from "../routes/project.routes.js";
+import developerRouter from "../routes/developer.routes.js";
+import xmlFeedRouter from "./properties-feed.routes.js"; // Import the XML feed routes
 
 dotenv.config();
 
@@ -57,7 +57,7 @@ startServer();
 export default async (req, res) => {
   try {
     // Connect to the database before handling the request
-    await connectDB(process.env.MONGODB_URL, { dbName: "bay-homes" });
+    connectDB(process.env.MONGODB_URL, { dbName: "bay-homes" });
     // Pass the request to the Express app
     app(req, res);
   } catch (error) {
