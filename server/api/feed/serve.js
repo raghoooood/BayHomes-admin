@@ -1,5 +1,5 @@
 
-import XmlFeed from "../mongodb/models/XMLFeed.js";  // Import the model
+import XmlFeed from ".././../mongodb/models/XMLFeed.js";  // Import the model
 
 const escapeXML = (str) => {
     // Ensure the value is a string before performing the replacement
