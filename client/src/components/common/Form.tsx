@@ -48,13 +48,15 @@ const Form = ({
 }: FormProps) => {
 
   const [availableFeatures, setAvailableFeatures] = useState([
-"24/7 Maintenance Service", "24/7 Security Service", "Barbecue area",
-"Basketball Court", "Car Parking", "CCTV cameras", "Fire & Fighting Alarm Systems",
-"Fitness Facilities", "Gated community", "Gym", "Gymnasium", "High-Speed Elevators",
-"Jacuzzi", "Kids Pool", "Panoramic City Views", "Panoramic Views of the Sea", "Play area",
-"Playful Children’s Area", "Pool Area", "private pool", "Retail Outlets", "Sauna", 
+"24/7 Maintenance Service", "24/7 Security Service", "Barbecue Area",
+"Basketball Court", "Covered Parking", "CCTV Cameras", "Fire & Fighting Alarm Systems",
+"Fitness Facilities", "Gated Community", "Shared Gym", "Gymnasium", "High-Speed Elevators",
+"Jacuzzi", "Children Pool", "Panoramic City Views", "Panoramic Views of the Sea", "Play Area",
+"Children Play Area", "Shared Pool", "private Pool", "Retail Outlets", "Sauna", 
 "Squash Room", "Steam Room", "Swimming Pool", "Swimming pool for the community",
-"Tennis Court","Luxurious entrance Lobby ", "Vibrant Football Pitch"
+"Tennis Court", "Vibrant Football Pitch" , "Shared Spa", "Conference room", 
+"Balcony", "Kitchen Appliances", "Built in Wardrobes", "Central A/C", "Study", "Lobby in Building", 
+"Maids Room", "Concierge", "Dining in building"
   ]);
   const { data } = useList({ resource: "areas" }); 
   const areaNames = data?.data ?? [];
@@ -401,10 +403,10 @@ const Form = ({
                 required
                 inputProps={{ "aria-label": "Without label" }}
                 value={furnishingType}
-                {...register("furnishingType", { required: true })}
+                {...register("furnishingType", { required: false })}
               > 
-                <MenuItem value="furnished">Furnished</MenuItem>
-                <MenuItem value="unfurnished">Unfurnished</MenuItem>
+                <MenuItem value="Yes">Yes</MenuItem>
+                <MenuItem value="No">No</MenuItem>
               </Select>
             </FormControl>
 

@@ -7,7 +7,7 @@ import propertyRouter from "./routes/property.routes.js";
 import areaRouter from "./routes/area.routes.js";
 import projectRouter from "./routes/project.routes.js";
 import developerRouter from "./routes/developer.routes.js";
-import xmlFeedRouter from "./properties-feed.routes.js"; // Import the XML feed routes
+// import xmlFeedRouter from "./properties-feed.routes.js"; // Import the XML feed routes
 import connectDB from "./mongodb/connect.js";
 
 dotenv.config();
@@ -34,7 +34,7 @@ app.use("/api/v1/projects", projectRouter);
 app.use("/api/v1/developers", developerRouter);
 
 // Register the XML feed route
-app.use("/api/feed", xmlFeedRouter);
+app.use('/feed/bay-homes-real-es-1/privatesite/fc44a9d0aa949873ec6856daad56300c', serveFeed);
 
  const startServer = async () => {
   try {

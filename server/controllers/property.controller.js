@@ -1,7 +1,6 @@
 import Property from "../mongodb/models/property.js";
 import User from "../mongodb/models/user.js";
 import Area from "../mongodb/models/Area.js";
-import {generateFeed} from "./xMLFeed.controller.js"
 
 
 import mongoose from "mongoose";
@@ -211,7 +210,6 @@ const createProperty = async (req, res) => {
     areana.propertyId.push(newProperty._id);
     await areana.save({ session });
 
-    await generateFeed(); 
 
     await session.commitTransaction();
 
@@ -370,9 +368,6 @@ const updateProperty = async (req, res) => {
     }
 
     res.status(200).json({ message: "Property updated successfully", updatedProperty });
-
-    await generateFeed(); 
-    
     await session.commitTransaction();
     session.endSession();
 
@@ -423,8 +418,6 @@ const getPublicIdFromUrl = (url) => {
         cloudinary.uploader.destroy(backgroundImagePublicId),
         cloudinary.uploader.destroy(barcodePublicId),
       ]);
-
-      await generateFeed(); 
 
       // Commit the transaction
       await session.commitTransaction();

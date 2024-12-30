@@ -111,7 +111,7 @@ const AreaDetails = () => {
             borderRadius={2}
           >
             <Stack mt={2} justifyContent="center" alignItems="center" textAlign="center">
-              <img
+             <img
                 src={areaDetails.creator.avatar }
                 alt="avatar"
                 width={90}
@@ -120,7 +120,7 @@ const AreaDetails = () => {
                   borderRadius: "100%",
                   objectFit: "cover",
                 }}
-              />
+              /> 
 
               <Box mt="15px">
                 <Typography fontSize={18} fontWeight={600} color="#11142D">
