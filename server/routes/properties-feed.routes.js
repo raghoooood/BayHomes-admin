@@ -1,6 +1,6 @@
 import express from "express";
 import { generateFeed } from "../controllers/xMLFeed.controller.js";
-import { serveFeed } from "../api/feed/serve.js";
+import { serveFeed } from "../controllers/xMLFeed.controller.js";
 
 const router = express.Router();
 

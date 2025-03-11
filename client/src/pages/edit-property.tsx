@@ -50,7 +50,7 @@ const EditProperty = () => {
         backgroundImage: ({ name: "backgroundImage", url: backgroundImage })
       });
       setBarcodeImage({ name: "barcode", url: property.barcode });
-      setSelectedArea(property.area?.areaName || '');
+      setSelectedArea(property.area?.areaName || '' );
       setSelectedFeatures(property.features || []);
       setDescription(property.description || '');
       setPropertyType(property.propertyType || '');

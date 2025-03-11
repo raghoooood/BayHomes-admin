@@ -222,7 +222,6 @@ const createProperty = async (req, res) => {
 
 
 const updateProperty = async (req, res) => {
-  
   try {
     const { id } = req.params;
     const {
@@ -252,16 +251,14 @@ const updateProperty = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
- 
-
     // Fetch the existing property
-    const existingProperty = await Property.findById(id).populate("area").session(session);
+    const existingProperty = await Property.findById(id).populate("area creator").session(session);
     if (!existingProperty) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-     // If status is provided, handle archiving logic
-     if (status !== undefined) {
+    // If status is provided, handle archiving logic
+    if (status !== undefined) {
       const updatedProperty = await Property.findByIdAndUpdate(
         id,
         { status },
@@ -283,8 +280,6 @@ const updateProperty = async (req, res) => {
       console.error("Error generating propId:", err);
       throw new Error("Failed to generate propId");
     }
-    
-    
 
     const newArea = await Area.findOne({ areaName }).session(session);
     if (!newArea) {
@@ -293,11 +288,9 @@ const updateProperty = async (req, res) => {
 
     // If the area is changing, update the property ID in both areas
     if (!existingProperty.area.equals(newArea._id)) {
-      // Remove property ID from the previous area
       existingProperty.area.propertyId.pull(existingProperty._id);
       await existingProperty.area.save({ session });
 
-      // Add property ID to the new area
       newArea.propertyId.push(existingProperty._id);
       await newArea.save({ session });
     }
@@ -305,12 +298,11 @@ const updateProperty = async (req, res) => {
     // Handle propImages update
     let imageUrls = [];
     if (propImages && Array.isArray(propImages) && propImages.length > 0) {
-      // Only upload images that are new (not URLs)
       const newImages = propImages.filter(image => !image.startsWith("http"));
       const uploadedImages = await Promise.all(
-        newImages.map((image) => cloudinary.uploader.upload(image))
+        newImages.map(image => cloudinary.uploader.upload(image))
       );
-      imageUrls = uploadedImages.map((image) => image.url);
+      imageUrls = uploadedImages.map(image => image.url);
     }
 
     // Handle background image update
@@ -327,7 +319,7 @@ const updateProperty = async (req, res) => {
       imageUrl = uploadedImage.url;
     }
 
-    // Update the property with the new data and delete old image URLs
+    // Update the property
     const updatedProperty = await Property.findByIdAndUpdate(
       { _id: id },
       {
@@ -356,7 +348,18 @@ const updateProperty = async (req, res) => {
       },
       { new: true }
     ).session(session);
-    
+
+    // Update the creator field in the property and push to the user's allProperties field
+    const user = await User.findOne({ email }).session(session);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    user.allProperties.push(updatedProperty._id);
+    await user.save({ session });
+
+    updatedProperty.creator = user._id;
+    await updatedProperty.save({ session });
 
     // Optionally, delete old images from Cloudinary
     if (imageUrls.length > 0) {
@@ -375,6 +378,7 @@ const updateProperty = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Helper function to extract the public ID from a Cloudinary URL
 const getPublicIdFromUrl = (url) => {

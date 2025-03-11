@@ -169,7 +169,7 @@ const PropertyDetails = () => {
                   Area Name
                 </Typography>
                 <Typography fontSize={18} fontWeight={700} color="#dc743c">
-                  {propertyDetails.area.areaName}
+                   {propertyDetails.area.areaName} 
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
